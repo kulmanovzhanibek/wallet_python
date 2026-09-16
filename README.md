@@ -17,6 +17,17 @@ FastAPI + aiogram 3 + SQLAlchemy 2.0 (asyncpg), PostgreSQL 16, Redis, arq.
 - `docker compose` с Postgres 16 и Redis 7;
 - `ruff`, `mypy --strict`, `pytest` — зелёные, всё это же гоняет CI.
 
+## Что нужно установить
+
+| Инструмент | Зачем | macOS | Linux |
+|-----------|-------|-------|-------|
+| **uv** | менеджер зависимостей и Python | `brew install uv` | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| **Docker** | Postgres и Redis локально | Docker Desktop | `docker` + `docker compose` |
+
+Python ставить отдельно не нужно: `uv venv --python 3.12` скачает нужную
+версию сам. Если `uv` установлен curl-скриптом, откройте новый терминал —
+бинарник кладётся в `~/.local/bin`, и текущая сессия его ещё не видит.
+
 ## Запуск за 5 минут
 
 ```bash

@@ -4,18 +4,43 @@ SHELL := /bin/bash
 VENV := .venv/bin
 COMPOSE := docker compose
 
+# Каталоги, которые проверяют ruff и mypy. scripts/ появится на этапе 6 —
+# подключаем его только когда в нём есть код, иначе mypy падает на пустом каталоге.
+SRC := app tests $(if $(wildcard scripts/*.py),scripts,)
+
 .PHONY: help install up down logs psql redis test lint fmt typecheck check migrate revision
+.PHONY: require-uv require-docker require-venv
 
 help:  ## Показать список команд
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
-install:  ## Создать venv и установить зависимости
+require-uv:
+	@command -v uv >/dev/null 2>&1 || { \
+		echo "✗ uv не найден — это менеджер зависимостей проекта."; \
+		echo "  Установите одной из команд:"; \
+		echo "    brew install uv"; \
+		echo "    curl -LsSf https://astral.sh/uv/install.sh | sh"; \
+		echo "  После curl-установщика откройте новый терминал (uv кладётся в ~/.local/bin)."; \
+		exit 1; }
+
+require-docker:
+	@docker info >/dev/null 2>&1 || { \
+		echo "✗ Docker не отвечает. Запустите Docker Desktop и повторите."; \
+		exit 1; }
+
+require-venv:
+	@test -x $(VENV)/python || { \
+		echo "✗ Окружение не собрано. Выполните: make install"; \
+		exit 1; }
+
+install: require-uv  ## Создать venv и установить зависимости
 	uv venv --python 3.12
 	uv pip install -e ".[dev]"
 	$(VENV)/pre-commit install
+	@echo "✓ Готово. Дальше: make up && make check"
 
-up:  ## Поднять dev-окружение (Postgres, Redis)
+up: require-docker  ## Поднять dev-окружение (Postgres, Redis)
 	$(COMPOSE) up -d --wait
 
 down:  ## Остановить dev-окружение
@@ -30,25 +55,25 @@ psql:  ## Консоль psql внутри контейнера
 redis:  ## Консоль redis-cli внутри контейнера
 	$(COMPOSE) exec redis redis-cli
 
-test:  ## Тесты
+test: require-venv  ## Тесты
 	$(VENV)/pytest
 
-lint:  ## ruff + mypy --strict
-	$(VENV)/ruff check app tests scripts
-	$(VENV)/ruff format --check app tests scripts
-	$(VENV)/mypy app tests scripts
+lint: require-venv  ## ruff + mypy --strict
+	$(VENV)/ruff check $(SRC)
+	$(VENV)/ruff format --check $(SRC)
+	$(VENV)/mypy $(SRC)
 
-fmt:  ## Отформатировать код
-	$(VENV)/ruff format app tests scripts
-	$(VENV)/ruff check --fix app tests scripts
+fmt: require-venv  ## Отформатировать код
+	$(VENV)/ruff format $(SRC)
+	$(VENV)/ruff check --fix $(SRC)
 
-typecheck:  ## Только mypy
-	$(VENV)/mypy app tests scripts
+typecheck: require-venv  ## Только mypy
+	$(VENV)/mypy $(SRC)
 
 check: lint test  ## Всё, что проверяет CI
 
-migrate:  ## Применить миграции
+migrate: require-venv  ## Применить миграции
 	$(VENV)/alembic upgrade head
 
-revision:  ## Новая миграция: make revision m="описание"
+revision: require-venv  ## Новая миграция: make revision m="описание"
 	$(VENV)/alembic revision --autogenerate -m "$(m)"
