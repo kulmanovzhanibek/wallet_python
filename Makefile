@@ -4,11 +4,14 @@ SHELL := /bin/bash
 VENV := .venv/bin
 COMPOSE := docker compose
 
-# Каталоги, которые проверяют ruff и mypy. scripts/ появится на этапе 6 —
-# подключаем его только когда в нём есть код, иначе mypy падает на пустом каталоге.
-SRC := app tests $(if $(wildcard scripts/*.py),scripts,)
+# Каталоги, которые проверяют ruff и mypy. Миграции — такой же код, и их
+# тоже надо линтовать: pre-commit это уже ловил, а make lint пропускал.
+# scripts/ появится на этапе 6 — подключаем его только когда в нём есть .py,
+# иначе mypy падает на пустом каталоге.
+SRC := app tests migrations $(if $(wildcard scripts/*.py),scripts,)
 
-.PHONY: help install up down logs psql redis test lint fmt typecheck check migrate revision
+.PHONY: help install up down logs psql redis test test-unit test-int lint fmt typecheck check
+.PHONY: migrate revision db-reset db-check
 .PHONY: require-uv require-docker require-venv
 
 help:  ## Показать список команд
@@ -55,8 +58,14 @@ psql:  ## Консоль psql внутри контейнера
 redis:  ## Консоль redis-cli внутри контейнера
 	$(COMPOSE) exec redis redis-cli
 
-test: require-venv  ## Тесты
+test: require-venv  ## Все тесты
 	$(VENV)/pytest
+
+test-unit: require-venv  ## Только юнит-тесты (без БД)
+	$(VENV)/pytest tests/unit
+
+test-int: require-venv  ## Только интеграционные тесты (нужен Postgres)
+	$(VENV)/pytest tests/integration
 
 lint: require-venv  ## ruff + mypy --strict
 	$(VENV)/ruff check $(SRC)
@@ -77,3 +86,10 @@ migrate: require-venv  ## Применить миграции
 
 revision: require-venv  ## Новая миграция: make revision m="описание"
 	$(VENV)/alembic revision --autogenerate -m "$(m)"
+
+db-reset: require-venv  ## Откатить всё и применить заново
+	$(VENV)/alembic downgrade base
+	$(VENV)/alembic upgrade head
+
+db-check: require-venv  ## Проверить, что модели и схема БД не разъехались
+	$(VENV)/alembic check

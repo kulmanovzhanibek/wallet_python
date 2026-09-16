@@ -23,21 +23,54 @@ PIVOT_CURRENCY = "USD"
 """Опорная валюта: кросс-курсы считаются через неё."""
 
 
+def to_async_dsn(url: str) -> str:
+    """Переводит DSN на асинхронный драйвер.
+
+    Вынесено из :class:`Settings`, потому что тем же кодом пользуется
+    `migrations/env.py`: миграциям нужен только `DATABASE_URL`, и тащить
+    ради них обязательный `BOT_TOKEN` было бы неправильно.
+    """
+    if "+asyncpg" in url:
+        return url
+    return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+
 class AppEnv(StrEnum):
     dev = "dev"
     test = "test"
     prod = "prod"
 
 
-class Settings(BaseSettings):
+ENV_CONFIG = SettingsConfigDict(
+    env_file=".env",
+    env_file_encoding="utf-8",
+    extra="ignore",
+    case_sensitive=False,
+)
+
+
+class DatabaseSettings(BaseSettings):
+    """Только подключение к БД.
+
+    Отдельный класс нужен Alembic: миграции применяются одноразовым сервисом
+    в compose и шагом в CI, где `BOT_TOKEN` брать негде и незачем. Полный
+    :class:`Settings` наследует это поле, поэтому разъехаться они не могут.
+    """
+
+    model_config = ENV_CONFIG
+
+    database_url: PostgresDsn
+
+    @property
+    def sqlalchemy_url(self) -> str:
+        """DSN для SQLAlchemy: обязательно асинхронный драйвер."""
+        return to_async_dsn(str(self.database_url))
+
+
+class Settings(DatabaseSettings):
     """Настройки процесса. Один экземпляр на процесс, см. :func:`get_settings`."""
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False,
-    )
+    model_config = ENV_CONFIG
 
     app_env: AppEnv = AppEnv.dev
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
@@ -50,7 +83,6 @@ class Settings(BaseSettings):
     set_webhook_on_startup: bool = True
 
     # --- PostgreSQL -------------------------------------------------------
-    database_url: PostgresDsn
     db_pool_size: int = Field(default=10, ge=1, le=100)
     db_max_overflow: int = Field(default=5, ge=0, le=100)
     db_echo: bool = False
@@ -89,14 +121,6 @@ class Settings(BaseSettings):
             msg = f"DEFAULT_CURRENCY={value} не входит в {sorted(SUPPORTED_CURRENCIES)}"
             raise ValueError(msg)
         return value
-
-    @property
-    def sqlalchemy_url(self) -> str:
-        """DSN для SQLAlchemy: обязательно асинхронный драйвер."""
-        url = str(self.database_url)
-        if "+asyncpg" not in url:
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return url
 
     @property
     def webhook_url(self) -> str:

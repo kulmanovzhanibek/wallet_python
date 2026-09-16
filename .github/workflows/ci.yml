@@ -25,8 +25,8 @@ jobs:
           enable-cache: true
       - run: uv venv --python 3.12
       - run: uv pip install -e ".[dev]"
-      - run: uv run ruff check app tests
-      - run: uv run ruff format --check app tests
+      - run: uv run ruff check app tests migrations
+      - run: uv run ruff format --check app tests migrations
 
   typecheck:
     name: mypy --strict
@@ -39,11 +39,59 @@ jobs:
           enable-cache: true
       - run: uv venv --python 3.12
       - run: uv pip install -e ".[dev]"
-      - run: uv run mypy app tests
+      - run: uv run mypy app tests migrations
+
+  migrations:
+    name: alembic upgrade head на чистой БД
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: koshelek
+          POSTGRES_PASSWORD: koshelek
+          POSTGRES_DB: koshelek
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U koshelek -d koshelek"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://koshelek:koshelek@127.0.0.1:5432/koshelek
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+      - run: uv venv --python 3.12
+      - run: uv pip install -e ".[dev]"
+      - run: uv run alembic upgrade head
+      # Схема после миграций обязана совпадать с моделями: если кто-то
+      # поправил модель и забыл миграцию, autogenerate это заметит.
+      - name: Проверить, что модели и схема не разъехались
+        run: uv run alembic check
+      - name: Откат до пустой базы
+        run: uv run alembic downgrade base
 
   test:
     name: pytest
     runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: koshelek
+          POSTGRES_PASSWORD: koshelek
+          POSTGRES_DB: koshelek
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U koshelek -d koshelek"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://koshelek:koshelek@127.0.0.1:5432/koshelek
+      # Без этого интеграционные тесты молча пропустились бы, если база
+      # почему-то не поднялась, и CI остался бы зелёным.
+      REQUIRE_INTEGRATION: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5

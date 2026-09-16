@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from app.core.config import AppEnv, Settings
 from pydantic import ValidationError
+
+from app.core.config import AppEnv, Settings
 
 REQUIRED = {
     "BOT_TOKEN": "123456:test-token",

@@ -26,4 +26,4 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-        args: [app, tests, scripts]
+        args: [app, tests, migrations]

@@ -83,6 +83,12 @@ ignore = [
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
+[tool.ruff.lint.isort]
+# Без этого ruff считает `app` сторонним пакетом (он ищет модули ВНУТРИ
+# каталогов из `src`, а не сами каталоги) и перемешивает наши импорты
+# с alembic и sqlalchemy.
+known-first-party = ["app", "tests"]
+
 # ------------------------------------------------------------------ mypy ----
 [tool.mypy]
 python_version = "3.12"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from app.core.logging import MASK, add_correlation_ids, request_id_var, scrub, user_id_var
 
 

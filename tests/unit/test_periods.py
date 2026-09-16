@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 from itertools import pairwise
 
 import pytest
+
 from app.domain.models import PeriodKind
 from app.domain.periods import (
     TimezoneError,

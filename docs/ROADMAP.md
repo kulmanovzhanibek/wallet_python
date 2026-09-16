@@ -20,12 +20,39 @@
 | `Makefile`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml` | рутина и проверки |
 | `tests/unit/` | 109 тестов: деньги, периоды, конфиг, логи |
 
-## Этап 2 — данные и парсер
+## Этап 2 — данные и парсер ✅
 
-- [ ] SQLAlchemy-модели по схеме из ТЗ (раздел 6)
-- [ ] первая миграция Alembic + data-миграция системных категорий
-- [ ] `app/domain/parser.py` — разбор «кофе 1500» и 30+ тестов
-- [ ] репозитории: users, categories, transactions
+| Файл | Зачем нужен |
+|------|-------------|
+| `app/infra/orm.py` | таблицы SQLAlchemy 2.0 один в один со схемой из раздела 6 ТЗ |
+| `migrations/env.py` | Alembic на асинхронном движке; URL из `DATABASE_URL` или `.env` |
+| `migrations/versions/0001_initial_schema.py` | начальная схема, ENUM-типы создаются и удаляются явно |
+| `migrations/versions/0002_system_categories.py` | 17 системных категорий со словарём ключевых слов |
+| `app/domain/parser.py` | разбор «кофе 1500»: сумма, валюта, знак, категория |
+| `app/repositories/users.py` | `get_or_create` через `ON CONFLICT`, хэш API-токена |
+| `app/repositories/categories.py` | системные + свои категории, удаление только своих |
+| `app/repositories/transactions.py` | CRUD, мягкое удаление, пагинация через `OFFSET` (версия «до») |
+| `tests/integration/conftest.py` | настоящий Postgres, тест в откатываемой транзакции |
+| `tests/unit/test_parser.py` | 121 кейс парсера |
+| `tests/integration/` | 40 тестов: миграции, ограничения БД, репозитории |
+
+Найдено и исправлено по ходу:
+
+- `drop_table` в Postgres не удаляет типы `ENUM` — автогенерированный
+  `downgrade` ломал следующий `upgrade`. Жизненный цикл типов прописан руками;
+- `UNIQUE (user_id, kind, name)` из ТЗ не защищает системные категории:
+  два `NULL` в Postgres считаются разными значениями, и одну и ту же «Еду»
+  можно вставить дважды. Добавлен частичный уникальный индекс;
+- `12кг картошки 900` разбиралось как сумма **1.00**: негативный lookahead для
+  суффикса «к» стоял после всей группы и разрешал обрезать «12» до «1»;
+- `.env.example` из ТЗ указывает на хост `db` — это имя внутри сети docker,
+  с машины разработчика оно не разрешается.
+
+## Этап 2.5 — сервисы
+
+- [ ] `services/transactions.py` — запись операции, управление транзакцией БД
+- [ ] `services/reports.py` — агрегаты по периодам
+- [ ] `services/tokens.py` — выпуск и проверка API-токенов
 
 ## Этап 3 — бот (MVP)
 
