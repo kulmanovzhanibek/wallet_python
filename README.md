@@ -19,14 +19,41 @@ FastAPI + aiogram 3 + SQLAlchemy 2.0 (asyncpg), PostgreSQL 16, Redis, arq.
 
 ## Что нужно установить
 
-| Инструмент | Зачем | macOS | Linux |
-|-----------|-------|-------|-------|
-| **uv** | менеджер зависимостей и Python | `brew install uv` | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| **Docker** | Postgres и Redis локально | Docker Desktop | `docker` + `docker compose` |
+**uv** — менеджер зависимостей и Python. Python ставить отдельно не нужно:
+`uv venv --python 3.12` скачает нужную версию сам.
 
-Python ставить отдельно не нужно: `uv venv --python 3.12` скачает нужную
-версию сам. Если `uv` установлен curl-скриптом, откройте новый терминал —
-бинарник кладётся в `~/.local/bin`, и текущая сессия его ещё не видит.
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.local/bin/env      # или откройте новый терминал
+uv --version                 # проверка
+```
+
+Установщик кладёт готовый бинарник в `~/.local/bin` — ни компилятор, ни
+Xcode Command Line Tools ему не нужны.
+
+<details>
+<summary>Если установщик недоступен</summary>
+
+`uv` публикует готовые колёса под macOS (Apple Silicon и Intel) и Linux и
+требует всего лишь Python ≥ 3.8, так что системного `python3` достаточно:
+
+```bash
+python3 -m pip install --user uv
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+`brew install uv` на macOS тоже работает, но на старых версиях системы
+Homebrew может посчитать конфигурацию неподдерживаемой (Tier 3), полезть
+собирать `uv` из исходников и упасть на устаревших Command Line Tools.
+В этом случае проще взять готовый бинарник одним из способов выше, а brew
+починить отдельно: `sudo rm -rf /Library/Developer/CommandLineTools &&
+sudo xcode-select --install`.
+
+</details>
+
+**Docker** — Postgres и Redis локально: Docker Desktop на macOS,
+`docker` + `docker compose` на Linux. На этапе 1 он не обязателен:
+`make check` проходит без него, потому что слой `domain` тестируется без БД.
 
 ## Запуск за 5 минут
 

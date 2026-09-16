@@ -18,10 +18,10 @@ help:  ## Показать список команд
 require-uv:
 	@command -v uv >/dev/null 2>&1 || { \
 		echo "✗ uv не найден — это менеджер зависимостей проекта."; \
-		echo "  Установите одной из команд:"; \
-		echo "    brew install uv"; \
+		echo "  Установите готовый бинарник (Xcode и компилятор не нужны):"; \
 		echo "    curl -LsSf https://astral.sh/uv/install.sh | sh"; \
-		echo "  После curl-установщика откройте новый терминал (uv кладётся в ~/.local/bin)."; \
+		echo "    source ~/.local/bin/env   # или откройте новый терминал"; \
+		echo "  Если установщик недоступен: python3 -m pip install --user uv"; \
 		exit 1; }
 
 require-docker:
