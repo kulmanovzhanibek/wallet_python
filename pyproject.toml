@@ -1,0 +1,116 @@
+[project]
+name = "koshelek"
+version = "0.1.0"
+description = "Telegram-бот учёта личных финансов + REST API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiogram>=3.15,<4",
+    "alembic>=1.14",
+    "arq>=0.26",
+    "asyncpg>=0.30",
+    "fastapi>=0.115",
+    "httpx>=0.28",
+    "prometheus-client>=0.21",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "redis>=5.2",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "structlog>=24.4",
+    "uvicorn[standard]>=0.34",
+]
+
+[project.optional-dependencies]
+dev = [
+    "locust>=2.32",
+    "mypy>=1.14",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "pytest-cov>=6.0",
+    "respx>=0.22",
+    "ruff>=0.9",
+    "testcontainers[postgres,redis]>=4.9",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# ------------------------------------------------------------------ ruff ----
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["app", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "N",         # pep8-naming
+    "UP",        # pyupgrade
+    "B",         # bugbear
+    "C4",        # comprehensions
+    "DTZ",       # datetime timezone safety
+    "T20",       # no print()
+    "PT",        # pytest style
+    "RET",       # return simplifications
+    "SIM",       # simplify
+    "TID",       # tidy imports
+    "ARG",       # unused arguments
+    "PL",        # pylint subset
+    "RUF",       # ruff specific
+    "ASYNC",     # async antipatterns
+    "S",         # bandit
+]
+ignore = [
+    "PLR0913",   # число аргументов — сервисы принимают репозитории явно
+    "S101",      # assert в тестах
+    "RUF001",    # похожие юникод-символы (валютные знаки, кириллица)
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR2004", "ARG001", "ARG002", "S105", "S106"]
+"scripts/**" = ["T201", "S311", "PLR2004"]
+"migrations/**" = ["INP001"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+# ------------------------------------------------------------------ mypy ----
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_no_return = true
+show_error_codes = true
+plugins = []
+exclude = ["^migrations/versions/"]
+
+[[tool.mypy.overrides]]
+module = ["arq.*", "locust.*", "testcontainers.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------- pytest ----
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+markers = [
+    "integration: требует PostgreSQL и Redis (testcontainers или внешние URL)",
+]
+filterwarnings = ["error::DeprecationWarning:app.*"]
+
+[tool.coverage.run]
+branch = true
+source = ["app/domain", "app/services"]
+
+[tool.coverage.report]
+skip_empty = true
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\."]

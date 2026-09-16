@@ -1,0 +1,40 @@
+# Локальное окружение разработки.
+# На этапе 1 здесь только инфраструктура: Postgres и Redis.
+# Сервисы api / worker / bot-polling добавятся, когда появится код приложения.
+name: koshelek
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: koshelek
+      POSTGRES_PASSWORD: koshelek
+      POSTGRES_DB: koshelek
+    # Порт наружу открыт только на localhost и только в dev:
+    # так к базе можно подключиться psql/DBeaver, но не из интернета.
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U koshelek -d koshelek"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
